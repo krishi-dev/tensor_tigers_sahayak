@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Factor Finder Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f8ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            background-color: #add8e6;
+            border: 8px solid #4682b4;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    // Set canvas dimensions
+    canvas.width = 800;
+    canvas.height = 600;
+    // --- Game State and Variables ---
+    let gameState = 'INSTRUCTIONS'; // INSTRUCTIONS, PLAYING, LEVEL_COMPLETE
+    let score = 0;
+    let level = 0;
+    let targetNumber = 0;
+    let bubbles = [];
+    let correctFactorsInLevel = 0;
+    let correctFactorsClicked = 0;
+    // --- Game Configuration ---
+    const BUBBLE_RADIUS = 40;
+    const COLORS = {
+        background: '#87CEEB', // Sky Blue
+        text: '#00008B',       // Dark Blue
+        bubble: '#FFD700',     // Gold
+        bubbleStroke: '#DAA520', // Goldenrod
+        correct: '#32CD32',    // Lime Green
+        incorrect: '#FF4500',  // Orange Red
+        targetBg: '#FFFFFF'
+    };
+    // --- Utility Functions ---
+    function drawText(text, x, y, size, color, align = 'center', bold = false) {
+        ctx.fillStyle = color;
+        ctx.font = `${bold ? 'bold ' : ''}${size}px 'Verdana', sans-serif`;
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x, y);
+    }
+    function getFactors(num) {
+        const factors = new Set();
+        for (let i = 1; i <= Math.sqrt(num); i++) {
+            if (num % i === 0) {
+                factors.add(i);
+                factors.add(num / i);
+            }
+        }
+        // Exclude the number itself to make it more of a puzzle
+        factors.delete(num);
+        if (factors.size === 0) factors.add(1); // Every number has 1 as a factor
+        return Array.from(factors);
+    }
+    // --- Game Screens ---
+    function drawInstructions() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawText('Welcome to Factor Finder!', canvas.width / 2, 80, 50, COLORS.text, 'center', true);
+        drawText('What is a factor?', canvas.width / 2, 160, 30, COLORS.text, 'center');
+        drawText('A factor is a number that divides into another', canvas.width / 2, 200, 24, COLORS.text, 'center');
+        drawText('number exactly, with no remainder.', canvas.width / 2, 230, 24, COLORS.text, 'center');
+        drawText('For example, the factors of 12 are 1, 2, 3, 4, and 6.', canvas.width / 2, 270, 22, COLORS.text, 'center');
+        drawText('How to Play:', canvas.width / 2, 350, 30, COLORS.text, 'center');
+        drawText('A big number will appear in the middle.', canvas.width / 2, 390, 24, COLORS.text, 'center');
+        drawText('Click on all the bubbles that are factors of that number.', canvas.width / 2, 420, 24, COLORS.text, 'center');
+        ctx.fillStyle = COLORS.correct;
+        ctx.fillRect(canvas.width / 2 - 150, 500, 300, 60);
+        drawText('Click Here to Start!', canvas.width / 2, 530, 28, 'white', 'center', true);
+    }
+    function drawLevelComplete() {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawText('Level Complete!', canvas.width / 2, canvas.height / 2 - 30, 60, 'white', 'center', true);
+        drawText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 + 40, 40, 'white');
+    }
+    // --- Game Logic ---
+    function setupLevel() {
+        level++;
+        bubbles = [];
+        correctFactorsClicked = 0;
+        // Difficulty scaling
+        const minTarget = 10 + level * 5;
+        const maxTarget = 20 + level * 10;
+        targetNumber = Math.floor(Math.random() * (maxTarget - minTarget + 1)) + minTarget;
+        const factors = getFactors(targetNumber);
+        const numCorrect = Math.min(factors.length, 2 + Math.floor(level / 2));
+        const numIncorrect = 3 + Math.floor(level / 2);
+        // Select correct factors
+        let selectedFactors = new Set();
+        while (selectedFactors.size < numCorrect && factors.length > 0) {
+            const randomIndex = Math.floor(Math.random() * factors.length);
+            selectedFactors.add(factors.splice(randomIndex, 1)[0]);
+        }
+        correctFactorsInLevel = selectedFactors.size;
+        // Generate incorrect numbers
+        let incorrectNumbers = new Set();
+        while (incorrectNumbers.size < numIncorrect) {
+            const randomNum = Math.floor(Math.random() * (targetNumber - 2)) + 2; // Avoid 1 and target
+            if (targetNumber % randomNum !== 0) {
+                incorrectNumbers.add(randomNum);
+            }
+        }
+        const allValues = Array.from(selectedFactors).concat(Array.from(incorrectNumbers));
+        // Create bubble objects with non-overlapping positions
+        for (const val of allValues) {
+            let placed = false;
+            while (!placed) {
+                const newBubble = {
+                    value: val,
+                    x: Math.random() * (canvas.width - BUBBLE_RADIUS * 2) + BUBBLE_RADIUS,
+                    y: Math.random() * (canvas.height - 200) + 150, // Avoid top/bottom areas
+                    radius: BUBBLE_RADIUS,
+                    isFactor: selectedFactors.has(val),
+                    state: 'default' // default, correct, incorrect
+                };
+                // Check for overlap with other bubbles
+                let overlap = false;
+                for (const existingBubble of bubbles) {
+                    const dx = newBubble.x - existingBubble.x;
+                    const dy = newBubble.y - existingBubble.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < newBubble.radius + existingBubble.radius + 20) { // +20 for spacing
+                        overlap = true;
+                        break;
+                    }
+                }
+                if (!overlap) {
+                    bubbles.push(newBubble);
+                    placed = true;
+                }
+            }
+        }
+    }
+    function drawGame() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Draw HUD (Score and Level)
+        drawText(`Score: ${score}`, 10, 30, 24, COLORS.text, 'left');
+        drawText(`Level: ${level}`, canvas.width - 10, 30, 24, COLORS.text, 'right');
+        // Draw Target Number
+        ctx.fillStyle = COLORS.targetBg;
+        ctx.beginPath();
+        ctx.arc(canvas.width / 2, 80, 70, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = COLORS.text;
+        ctx.lineWidth = 5;
+        ctx.stroke();
+        drawText('Find factors of:', canvas.width / 2, 45, 20, COLORS.text);
+        drawText(targetNumber, canvas.width / 2, 85, 50, COLORS.text, 'center', true);
+        // Draw Bubbles
+        bubbles.forEach(bubble => {
+            ctx.beginPath();
+            let color = COLORS.bubble;
+            if (bubble.state === 'correct') color = COLORS.correct;
+            if (bubble.state === 'incorrect') color = COLORS.incorrect;
+            // Create a simple gradient for a "bubbly" look
+            const gradient = ctx.createRadialGradient(bubble.x - 10, bubble.y - 10, 5, bubble.x, bubble.y, bubble.radius);
+            gradient.addColorStop(0, 'white');
+            gradient.addColorStop(1, color);
+            ctx.fillStyle = gradient;
+            ctx.strokeStyle = bubble.state === 'default' ? COLORS.bubbleStroke : color;
+            ctx.lineWidth = 5;
+            ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            drawText(bubble.value, bubble.x, bubble.y, 28, 'black', 'center', true);
+        });
+    }
+    // --- Event Handling ---
+    function handleMouseClick(event) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+        if (gameState === 'INSTRUCTIONS') {
+            // Check if "Start" button is clicked
+            if (mouseX > canvas.width / 2 - 150 && mouseX < canvas.width / 2 + 150 &&
+                mouseY > 500 && mouseY < 560) {
+                gameState = 'PLAYING';
+                setupLevel();
+            }
+            return;
+        }
+        if (gameState === 'PLAYING') {
+            bubbles.forEach(bubble => {
+                const dx = mouseX - bubble.x;
+                const dy = mouseY - bubble.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < bubble.radius && bubble.state === 'default') {
+                    if (bubble.isFactor) {
+                        bubble.state = 'correct';
+                        score += 10;
+                        correctFactorsClicked++;
+                    } else {
+                        bubble.state = 'incorrect';
+                        score = Math.max(0, score - 5); // Don't go below zero
+                    }
+                    // Check for level completion
+                    if (correctFactorsClicked === correctFactorsInLevel) {
+                        gameState = 'LEVEL_COMPLETE';
+                        score += 50; // Level complete bonus
+                        setTimeout(() => {
+                            gameState = 'PLAYING';
+                            setupLevel();
+                        }, 2000); // 2-second pause before next level
+                    }
+                }
+            });
+        }
+    }
+    // --- Main Game Loop ---
+    function gameLoop() {
+        ctx.fillStyle = COLORS.background;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        switch (gameState) {
+            case 'INSTRUCTIONS':
+                drawInstructions();
+                break;
+            case 'PLAYING':
+                drawGame();
+                break;
+            case 'LEVEL_COMPLETE':
+                drawGame(); // Draw the final state of the board
+                drawLevelComplete(); // Overlay the message
+                break;
+        }
+        requestAnimationFrame(gameLoop);
+    }
+    // --- Start the Game ---
+    canvas.addEventListener('click', handleMouseClick);
+    gameLoop();
+</script>
+</body>
+</html>

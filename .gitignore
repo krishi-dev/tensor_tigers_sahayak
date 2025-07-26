@@ -1,0 +1,13 @@
+*.env
+user_sessions/
+docs/
+venv/
+main_app/
+__pycache__/
+speechmodule/
+imagemodule/
+ocr/
+chroma_db_gemini/
+.qodo/
+vertex_key.json
+

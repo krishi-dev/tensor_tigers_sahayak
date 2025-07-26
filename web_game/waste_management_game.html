@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waste Management Sorting Game</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #e0f7fa;
+            color: #004d40;
+            text-align: center;
+        }
+        #game-container {
+            border: 5px solid #00796b;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            background-color: #ffffff;
+            padding: 20px;
+        }
+        canvas {
+            background-color: #b2ebf2;
+            display: block;
+            margin: 0 auto;
+            cursor: grab;
+        }
+        #ui-container {
+            display: flex;
+            justify-content: space-between;
+            width: 800px;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        #instructions {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 18px;
+            max-width: 800px;
+        }
+        button {
+            font-size: 22px;
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 2px solid #004d40;
+            background-color: #4db6ac;
+            color: white;
+            border-radius: 8px;
+            margin-top: 20px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #00897b;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Waste Sorting Challenge</h1>
+        <p id="instructions">Drag the falling items to the correct bin to score points. Items that can be remade go to <strong>Recycling</strong>. Food scraps and yard waste go to <strong>Compost</strong>. Everything else goes to the <strong>Landfill</strong>. Be careful, you only have 3 chances!</p>
+        <div id="ui-container">
+            <span id="score">Score: 0</span>
+            <span id="strikes">Strikes: 0 / 3</span>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="button-wrapper" style="text-align: center;">
+            <button id="startButton">Start Game</button>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const strikesEl = document.getElementById('strikes');
+        const startButton = document.getElementById('startButton');
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        // --- Game State ---
+        let score = 0;
+        let strikes = 0;
+        const maxStrikes = 3;
+        let gameSpeed = 1.2;
+        let items = [];
+        let spawnTimer = 0;
+        let spawnInterval = 180; // frames
+        let isGameRunning = false;
+        let selectedItem = null;
+        let offsetX = 0;
+        let offsetY = 0;
+        let feedback = null;
+        // --- Game Objects ---
+        const bins = [
+            { x: 50,  y: canvasHeight - 130, width: 200, height: 110, type: 'recycle', color: '#0077c2', label: 'Recycling' },
+            { x: 300, y: canvasHeight - 130, width: 200, height: 110, type: 'compost', color: '#4caf50', label: 'Compost' },
+            { x: 550, y: canvasHeight - 130, width: 200, height: 110, type: 'trash',   color: '#424242', label: 'Landfill' }
+        ];
+        const itemTypes = [
+            // Recycle
+            { name: 'Bottle', type: 'recycle', w: 30, h: 60, draw: (x, y, w, h) => {
+                ctx.fillStyle = '#3498db';
+                ctx.fillRect(x, y + h * 0.2, w, h * 0.8);
+                ctx.fillRect(x + w * 0.3, y, w * 0.4, h * 0.2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fillRect(x + w * 0.1, y + h * 0.25, w * 0.2, h * 0.6);
+            }},
+            { name: 'Newspaper', type: 'recycle', w: 60, h: 45, draw: (x, y, w, h) => {
+                ctx.fillStyle = '#f0f0f0'; ctx.strokeStyle = '#555'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y + h * 0.1);
+                ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h * 0.9); ctx.closePath();
+                ctx.fill(); ctx.stroke();
+                ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
+                for (let i = 1; i < 4; i++) {
+                    ctx.beginPath(); ctx.moveTo(x + 5, y + (h / 4) * i); ctx.lineTo(x + w - 5, y + (h / 4) * i); ctx.stroke();
+                }
+            }},
+            { name: 'Can', type: 'recycle', w: 35, h: 45, draw: (x, y, w, h) => {
+                ctx.fillStyle = '#bdc3c7'; ctx.beginPath();
+                ctx.ellipse(x + w / 2, y + h * 0.95, w / 2, h * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillRect(x, y + h * 0.05, w, h * 0.9);
+                ctx.fillStyle = '#95a5a6'; ctx.beginPath();
+                ctx.ellipse(x + w / 2, y + h * 0.05, w / 2, h * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+            }},
+            // Compost
+            { name: 'Apple Core', type: 'compost', w: 40, h: 45, draw: (x, y, w, h) => {
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath(); ctx.arc(x + w / 2, y + h * 0.3, w * 0.5, Math.PI, 2 * Math.PI); ctx.fill();
+                ctx.beginPath(); ctx.arc(x + w / 2, y + h * 0.7, w * 0.5, 0, Math.PI); ctx.fill();
+                ctx.fillStyle = '#f39c12';
+                ctx.fillRect(x + w * 0.3, y + h * 0.25, w * 0.4, h * 0.5);
+                ctx.fillStyle = '#784421';
+                ctx.fillRect(x + w * 0.45, y, w * 0.1, h * 0.2);
+            }},
+            { name: 'Banana Peel', type: 'compost', w: 60, h: 40, draw: (x, y, w, h) => {
+                ctx.fillStyle = '#f1c40f'; ctx.strokeStyle = '#b8860b'; ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x, y + h);
+                ctx.quadraticCurveTo(x + w / 2, y - h / 2, x + w, y + h);
+                ctx.quadraticCurveTo(x + w / 2, y + h / 2, x, y + h);
+                ctx.fill(); ctx.stroke();
+            }},
+            { name: 'Egg Shells', type: 'compost', w: 45, h: 40, draw: (x, y, w, h) => {
+                ctx.fillStyle = '#f5f5dc'; ctx.strokeStyle = '#ccc'; ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x, y + h);
+                ctx.lineTo(x + w * 0.2, y + h * 0.3); ctx.lineTo(x + w * 0.5, y + h * 0.8);
+                ctx.lineTo(x + w * 0.8, y); ctx.lineTo(x + w, y + h);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+            }},
+            // Trash
+            { name: 'Chip Bag', type: 'trash', w: 50, h: 60, draw: (x, y, w, h) => {
+                ctx.fillStyle = '#c0392b'; ctx.beginPath();
+                ctx.moveTo(x, y); ctx.lineTo(x + w, y);
+                ctx.lineTo(x + w * 0.85, y + h); ctx.lineTo(x + w * 0.15, y + h);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#f1c40f'; ctx.beginPath();
+                ctx.arc(x + w / 2, y + h / 2, w / 3, 0, 2 * Math.PI); ctx.fill();
+            }},
+            { name: 'Styrofoam Cup', type: 'trash', w: 45, h: 55, draw: (x, y, w, h) => {
+                ctx.fillStyle = '#ecf0f1'; ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y);
+                ctx.lineTo(x + w * 0.8, y + h); ctx.lineTo(x + w * 0.2, y + h);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+            }},
+            { name: 'Broken Toy', type: 'trash', w: 55, h: 55, draw: (x, y, w, h) => {
+                ctx.fillStyle = '#8e44ad'; ctx.fillRect(x, y, w, h);
+                ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(x + w * 0.1, y + w * 0.1); ctx.lineTo(x + w * 0.9, y + h * 0.9); ctx.stroke();
+                ctx.fillStyle = '#2c3e50'; ctx.beginPath();
+                ctx.arc(x + w*0.7, y + h*0.3, w*0.1, 0, 2 * Math.PI); ctx.fill();
+            }}
+        ];
+        // --- Core Functions ---
+        function startGame() {
+            score = 0;
+            strikes = 0;
+            gameSpeed = 1.2;
+            spawnInterval = 180;
+            items = [];
+            isGameRunning = true;
+            startButton.style.display = 'none';
+            updateUI();
+            gameLoop();
+        }
+        function gameOver() {
+            isGameRunning = false;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            ctx.fillStyle = 'white';
+            ctx.font = '60px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Game Over', canvasWidth / 2, canvasHeight / 2 - 40);
+            ctx.font = '40px Arial';
+            ctx.fillText(`Final Score: ${score}`, canvasWidth / 2, canvasHeight / 2 + 20);
+            startButton.textContent = 'Play Again';
+            startButton.style.display = 'block';
+        }
+        function gameLoop() {
+            if (!isGameRunning) return;
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        function update() {
+            // Spawn new items
+            spawnTimer++;
+            if (spawnTimer >= spawnInterval) {
+                spawnItem();
+                spawnTimer = 0;
+            }
+            // Move items
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                if (item !== selectedItem) {
+                    item.y += gameSpeed;
+                }
+                // Check for missed items that hit the floor
+                if (item.y + item.h > canvasHeight - 5) {
+                    items.splice(i, 1);
+                    addStrike('Item missed!');
+                }
+            }
+            // Update feedback timer
+            if (feedback && feedback.timer > 0) {
+                feedback.timer--;
+            } else {
+                feedback = null;
+            }
+        }
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#b2ebf2';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            // Draw bins
+            bins.forEach(bin => {
+                ctx.fillStyle = bin.color;
+                ctx.fillRect(bin.x, bin.y, bin.width, bin.height);
+                ctx.fillStyle = 'white';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(bin.label, bin.x + bin.width / 2, bin.y + 30);
+                // Draw recycling symbol
+                if (bin.type === 'recycle') {
+                    ctx.strokeStyle = 'white'; ctx.lineWidth = 4;
+                    ctx.beginPath(); ctx.moveTo(bin.x+105, bin.y+50); ctx.lineTo(bin.x+85, bin.y+70); ctx.lineTo(bin.x+105, bin.y+90);
+                    ctx.moveTo(bin.x+95, bin.y+50); ctx.lineTo(bin.x+115, bin.y+70); ctx.lineTo(bin.x+95, bin.y+90);
+                    ctx.stroke();
+                }
+            });
+            // Draw items
+            items.forEach(item => {
+                item.draw(item.x, item.y, item.w, item.h);
+            });
+            // Draw feedback
+            if (feedback) {
+                ctx.font = 'bold 72px Arial';
+                ctx.fillStyle = feedback.color;
+                ctx.textAlign = 'center';
+                ctx.fillText(feedback.text, feedback.x, feedback.y);
+            }
+        }
+        // --- Helper Functions ---
+        function updateUI() {
+            scoreEl.textContent = `Score: ${score}`;
+            strikesEl.textContent = `Strikes: ${strikes} / ${maxStrikes}`;
+        }
+        function spawnItem() {
+            const itemProto = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+            const newItem = {
+                ...itemProto,
+                x: Math.random() * (canvasWidth - itemProto.w - 40) + 20,
+                y: -itemProto.h,
+            };
+            items.push(newItem);
+        }
+        function addStrike() {
+            strikes++;
+            updateUI();
+            if (strikes >= maxStrikes) {
+                gameOver();
+            }
+        }
+        function addScore() {
+            score++;
+            updateUI();
+            // Increase difficulty every 5 points
+            if (score > 0 && score % 5 === 0) {
+                gameSpeed += 0.2;
+                spawnInterval = Math.max(75, spawnInterval - 15);
+            }
+        }
+        function checkCollision(point, rect) {
+            return point.x > rect.x && point.x < rect.x + rect.width &&
+                   point.y > rect.y && point.y < rect.y + rect.height;
+        }
+        // --- Event Handlers ---
+        startButton.addEventListener('click', startGame);
+        canvas.addEventListener('mousedown', (e) => {
+            if (!isGameRunning) return;
+            const pos = { x: e.offsetX, y: e.offsetY };
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                if (pos.x > item.x && pos.x < item.x + item.w &&
+                    pos.y > item.y && pos.y < item.y + item.h) {
+                    selectedItem = item;
+                    offsetX = pos.x - item.x;
+                    offsetY = pos.y - item.y;
+                    canvas.style.cursor = 'grabbing';
+                    break;
+                }
+            }
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (selectedItem) {
+                const pos = { x: e.offsetX, y: e.offsetY };
+                selectedItem.x = pos.x - offsetX;
+                selectedItem.y = pos.y - offsetY;
+            }
+        });
+        canvas.addEventListener('mouseup', (e) => {
+            if (selectedItem) {
+                let droppedInBin = false;
+                for (const bin of bins) {
+                    if (checkCollision({ x: selectedItem.x + selectedItem.w / 2, y: selectedItem.y + selectedItem.h / 2 }, bin)) {
+                        if (selectedItem.type === bin.type) {
+                            addScore();
+                            feedback = { text: '✓', x: bin.x + bin.width / 2, y: bin.y + bin.height / 2 + 25, color: '#2ecc71', timer: 30 };
+                        } else {
+                            addStrike();
+                            feedback = { text: '✗', x: bin.x + bin.width / 2, y: bin.y + bin.height / 2 + 25, color: '#e74c3c', timer: 30 };
+                        }
+                        droppedInBin = true;
+                        break;
+                    }
+                }
+                // Remove the item from the game
+                const index = items.indexOf(selectedItem);
+                if (index > -1) {
+                    items.splice(index, 1);
+                }
+                selectedItem = null;
+                canvas.style.cursor = 'grab';
+            }
+        });
+    </script>
+</body>
+</html>

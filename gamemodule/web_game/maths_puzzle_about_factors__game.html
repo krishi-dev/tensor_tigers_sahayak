@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factor Finder Game</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f8ff;
+            color: #333;
+        }
+        h1 {
+            color: #ff6347;
+            text-shadow: 2px 2px #d3d3d3;
+        }
+        canvas {
+            border: 5px solid #00ced1;
+            border-radius: 10px;
+            background-color: #e0ffff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Factor Finder!</h1>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 600;
+        canvas.height = 700;
+        // --- Game State & Configuration ---
+        let score = 0;
+        let lives = 3;
+        let level = 0;
+        let factorsFoundThisLevel = 0;
+        let gameState = 'start'; // 'start', 'playing', 'levelComplete', 'gameOver'
+        const bubbles = [];
+        const particles = [];
+        let spawnCounter = 0;
+        const levels = [
+            { number: 12, speed: 0.8, spawnRate: 110, goal: 5, color: '#3498db' },
+            { number: 20, speed: 1.0, spawnRate: 100, goal: 6, color: '#2ecc71' },
+            { number: 36, speed: 1.2, spawnRate: 90, goal: 8, color: '#f1c40f' },
+            { number: 48, speed: 1.4, spawnRate: 80, goal: 10, color: '#e67e22' },
+            { number: 60, speed: 1.6, spawnRate: 70, goal: 12, color: '#e74c3c' },
+            { number: 72, speed: 1.8, spawnRate: 60, goal: 12, color: '#9b59b6' }
+        ];
+        let currentLevelConfig = {};
+        let currentFactors = [];
+        // --- Utility Functions ---
+        function getFactors(num) {
+            const factors = new Set();
+            for (let i = 1; i <= Math.sqrt(num); i++) {
+                if (num % i === 0) {
+                    factors.add(i);
+                    factors.add(num / i);
+                }
+            }
+            return Array.from(factors);
+        }
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        function distance(x1, y1, x2, y2) {
+            const dx = x1 - x2;
+            const dy = y1 - y2;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        // --- Game Object Creation ---
+        function createBubble() {
+            const radius = getRandomInt(25, 40);
+            const x = getRandomInt(radius, canvas.width - radius);
+            const y = -radius;
+            const speed = currentLevelConfig.speed * (1 + Math.random() * 0.5);
+            let value;
+            let isFactor;
+            // 50% chance to spawn a factor
+            if (Math.random() > 0.5 && currentFactors.length > 0) {
+                isFactor = true;
+                value = currentFactors[getRandomInt(0, currentFactors.length - 1)];
+            } else {
+                isFactor = false;
+                // Generate a number that is NOT a factor
+                do {
+                    value = getRandomInt(2, currentLevelConfig.number + 10);
+                } while (currentLevelConfig.number % value === 0);
+            }
+            const color = `hsl(${getRandomInt(0, 360)}, 80%, 70%)`;
+            bubbles.push({ x, y, radius, speed, value, isFactor, color });
+        }
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x,
+                    y,
+                    radius: Math.random() * 3 + 1,
+                    color,
+                    vx: Math.random() * 6 - 3,
+                    vy: Math.random() * 6 - 3,
+                    life: 50 // frames
+                });
+            }
+        }
+        // --- Level Management ---
+        function setupLevel(levelIndex) {
+            level = levelIndex;
+            if (level >= levels.length) {
+                gameState = 'gameOver'; // Or a 'You Win!' state
+                return;
+            }
+            currentLevelConfig = levels[level];
+            currentFactors = getFactors(currentLevelConfig.number);
+            factorsFoundThisLevel = 0;
+            bubbles.length = 0;
+            particles.length = 0;
+            spawnCounter = 0;
+            gameState = 'playing';
+        }
+        function resetGame() {
+            score = 0;
+            lives = 3;
+            level = 0;
+            setupLevel(0);
+        }
+        // --- Event Handling ---
+        function handleMouseClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            if (gameState === 'start' || gameState === 'levelComplete') {
+                setupLevel(level);
+                return;
+            }
+            if (gameState === 'gameOver') {
+                 if (mouseX > canvas.width / 2 - 100 && mouseX < canvas.width / 2 + 100 &&
+                    mouseY > canvas.height / 2 + 40 && mouseY < canvas.height / 2 + 100) {
+                    resetGame();
+                }
+                return;
+            }
+            if (gameState === 'playing') {
+                let clickedOnBubble = false;
+                for (let i = bubbles.length - 1; i >= 0; i--) {
+                    const bubble = bubbles[i];
+                    if (distance(mouseX, mouseY, bubble.x, bubble.y) < bubble.radius) {
+                        if (bubble.isFactor) {
+                            score += 10;
+                            factorsFoundThisLevel++;
+                            createParticles(bubble.x, bubble.y, '#00ff00');
+                        } else {
+                            lives--;
+                            createParticles(bubble.x, bubble.y, '#ff0000');
+                            if (lives <= 0) {
+                                gameState = 'gameOver';
+                            }
+                        }
+                        bubbles.splice(i, 1);
+                        clickedOnBubble = true;
+                        break; 
+                    }
+                }
+            }
+        }
+        canvas.addEventListener('click', handleMouseClick);
+        // --- Update Logic ---
+        function update() {
+            if (gameState !== 'playing') return;
+            // Spawn new bubbles
+            spawnCounter++;
+            if (spawnCounter >= currentLevelConfig.spawnRate) {
+                createBubble();
+                spawnCounter = 0;
+            }
+            // Update bubbles
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                const bubble = bubbles[i];
+                bubble.y += bubble.speed;
+                // Check for missed factors
+                if (bubble.y - bubble.radius > canvas.height) {
+                    if (bubble.isFactor) {
+                        lives--;
+                        if (lives <= 0) gameState = 'gameOver';
+                    }
+                    bubbles.splice(i, 1);
+                }
+            }
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+            // Check for level completion
+            if (factorsFoundThisLevel >= currentLevelConfig.goal) {
+                gameState = 'levelComplete';
+                level++;
+            }
+        }
+        // --- Drawing Logic ---
+        function draw() {
+            // Clear canvas with a nice gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(1, '#E0FFFF');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (gameState === 'start') {
+                drawOverlay("Factor Finder!", "Click the bubbles that are factors of the TARGET number.", "Click to Start");
+                return;
+            }
+            if (gameState === 'levelComplete') {
+                drawOverlay(`Level ${level} Complete!`, `Your score: ${score}`, "Click to Continue");
+                return;
+            }
+            if (gameState === 'gameOver') {
+                drawOverlay("Game Over", `Final Score: ${score}`, "");
+                drawButton("Play Again", canvas.width / 2, canvas.height / 2 + 70);
+                return;
+            }
+            // Draw target machine
+            drawTargetMachine();
+            // Draw particles
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life / 50;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+            // Draw bubbles
+            bubbles.forEach(bubble => {
+                ctx.fillStyle = bubble.color;
+                ctx.beginPath();
+                ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.strokeText(bubble.value, bubble.x, bubble.y);
+                ctx.fillText(bubble.value, bubble.x, bubble.y);
+            });
+            // Draw UI
+            drawUI();
+        }
+        function drawTargetMachine() {
+            const machineHeight = 80;
+            ctx.fillStyle = '#a9a9a9';
+            ctx.fillRect(0, canvas.height - machineHeight, canvas.width, machineHeight);
+            ctx.fillStyle = '#696969';
+            ctx.fillRect(0, canvas.height - machineHeight, canvas.width, 10);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`TARGET: ${currentLevelConfig.number}`, canvas.width / 2, canvas.height - machineHeight / 2);
+        }
+        function drawUI() {
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 28px Arial';
+            ctx.fillStyle = '#333';
+            ctx.fillText(`Score: ${score}`, 20, 40);
+            ctx.textAlign = 'right';
+            ctx.fillText(`Lives: ${'❤️'.repeat(lives)}`, canvas.width - 20, 40);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = currentLevelConfig.color;
+            ctx.fillText(`Level: ${level + 1}`, canvas.width / 2, 40);
+            // Progress bar for level
+            const progress = factorsFoundThisLevel / currentLevelConfig.goal;
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(canvas.width/4, 60, canvas.width/2, 15);
+            ctx.fillStyle = '#2ecc71';
+            ctx.fillRect(canvas.width/4, 60, (canvas.width/2) * progress, 15);
+        }
+        function drawOverlay(title, subtitle, actionText) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 60px Arial';
+            ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 80);
+            ctx.font = '30px Arial';
+            ctx.fillText(subtitle, canvas.width / 2, canvas.height / 2);
+            ctx.font = 'italic 24px Arial';
+            ctx.fillText(actionText, canvas.width / 2, canvas.height / 2 + 80);
+        }
+        function drawButton(text, x, y) {
+            const width = 200;
+            const height = 60;
+            ctx.fillStyle = '#2ecc71';
+            ctx.fillRect(x - width / 2, y - height / 2, width, height);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 30px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y);
+        }
+        // --- Main Game Loop ---
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        // --- Start the game ---
+        gameLoop();
+    </script>
+</body>
+</html>
