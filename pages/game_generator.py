@@ -6,9 +6,10 @@ import os
 from gamemodule.game_generator import generate_game_code
 
 st.set_page_config(layout="wide")
-st.title("Web-Ready 2D Game Generator")
+st.title("🎮 Kreda AI")
+st.markdown("Web-Ready 2D Game Generator")
 
-st.write("Enter a context (e.g., 'waste management') to generate a playable 2D Pygame (via Pygbag).")
+st.write("Enter a context (e.g., 'waste management') to generate a playable 2D Game.")
 
 context = st.text_input("Game Context", "waste management")
 

@@ -42,12 +42,12 @@ def generate_response(query):
     response = llm.chat(user_input=query, history=st.session_state.history[-5::])    
     return response       
 
-st.title("Sahayak")
-
+st.title("⚡ Sahayak")
+st.markdown("Ask Sahayak Anything..")
 for message in st.session_state.history:
     with st.chat_message(message["role"]):
         if isinstance(message['content'], dict) and 'output' in message['content']:
-            st.write(message['content'])
+            st.write(message['content']['output'])
         else:
             st.write(message['content'])
 
@@ -69,7 +69,7 @@ if query := st.chat_input("Ask something"):
     
     with st.chat_message("assistant"):
             
-        st.write(response)
+        st.write(response['output'])
         response_time = f"{(time.time() - st_time):.2f}"
         st.markdown(f"<p style='font-size:10px;'> Response in {response_time} seconds </p>" , unsafe_allow_html= True)
         save_chat_to_file(st.session_state.user_folder, st.session_state.history)

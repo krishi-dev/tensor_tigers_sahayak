@@ -53,7 +53,7 @@ def evaluate_speech(reference_text: str, speech_text: str) -> str:
     return response.content.strip()
 
 # --- Streamlit UI ---
-st.title("🎤 Sabddha")
+st.title("🎤 Sabddha AI")
 st.subheader("Speech to Text Evaluation")
 # st.markdown("Practice your speech and get instant feedback!")
 

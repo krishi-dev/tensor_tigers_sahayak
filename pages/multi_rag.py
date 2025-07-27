@@ -20,7 +20,7 @@ api_key = os.getenv("GOOGLE_API_KEY")
 
 # Streamlit config
 st.set_page_config(page_title="Local-Aware RAG with Gemini", layout="centered")
-st.title("RAGaBot")
+st.title("📄 RAGaBot AI")
 # Shared embeddings and LLM from agent
 embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-001")
 chat_agent = TeacherChatAgent()  # initializes shared LLM

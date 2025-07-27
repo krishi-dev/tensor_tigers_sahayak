@@ -28,7 +28,7 @@ def generate_quiz(subject: str, grade: str, num_questions: int):
         return []
 
 def main():
-    st.title("Pariksha")
+    st.title("💯 Pariksha AI")
     st.subheader("The Exam Agent")
 
     subject = st.text_input("Enter Subject (e.g. Math, History)", "Math")
