@@ -17,6 +17,7 @@ def setup_google_credentials():
         credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
         if credentials_path and os.path.exists(credentials_path):
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+            os.environ['VISION_PROJECT_ID'] = os.environ['VISION_PROJECT_ID']
             logger.info(f"Credentials found at {credentials_path}")
             return
 

@@ -3,7 +3,7 @@ from ai_module.ai_models import GeminiVisionQA
 
 st.title("👁️‍🗨️ Netra")
 st.subheader("The Vision AI")
-qa = GeminiVisionQA(project_id="beaming-signal-466415-r4")
+qa = GeminiVisionQA()
 
 cam_on = st.toggle("Use Camera", key="use_camera", value=False)
 if cam_on:

@@ -189,9 +189,10 @@ class ImageSceneGenerator:
     
 
 class GeminiVisionQA:
-    def __init__(self, project_id: str, location: str = "global", model: str = "gemini-2.5-flash-lite"):
+    def __init__(self, location: str = "global", model: str = "gemini-2.5-flash-lite"):
         setup_google_credentials()
-        self.client = genai.Client(vertexai=True, project=project_id, location=location)
+        self.project_id = os.getenv('VISION_PROJECT_ID')
+        self.client = genai.Client(vertexai=True, project=self.project_id, location=location)
         self.model = model
 
     def _prepare_image_part(self, image: Union[str, bytes], mime_type: str = "image/jpeg") -> types.Part:
