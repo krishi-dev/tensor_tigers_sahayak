@@ -24,18 +24,18 @@ with st.sidebar:
     st.caption("Version V1.0 (Beta)")
 pg = st.navigation(
         pages=[
-        st.Page(page="pages/dashboard.py", title="Dashboard"),
-        st.Page(page="pages/tutor.py", title="Sahayak AI"),
+        st.Page(page="pages/dashboard.py", title="Dashboard", icon="🏠"),
+        st.Page(page="pages/tutor.py", title="Sahayak AI", icon="⚡"),
         # st.Page(page="pages/classes.py", title="Classes"),
         # st.Page(page="pages/ai_agents.py", title="Ai Agents"),
-        st.Page(page="pages/image_generation.py", title="Image Generation"),
-        st.Page(page="pages/multi_rag.py", title="Multi RAG"),
-        st.Page(page="pages/OCR.py", title="OCR"),
-        st.Page(page="pages/vision_ai.py", title="Vision AI"),
-        st.Page(page="pages/audio_assess.py", title="Audio Assessment"),
-        st.Page(page="pages/exam_agent.py", title="Exam Agent"),
-        st.Page(page='pages/game_generator.py', title="Game Generator"),
-        st.Page(page="pages/story_teller.py", title="Story Teller"),
+        st.Page(page="pages/image_generation.py", title="Image Generation", icon="🎨"),
+        st.Page(page="pages/multi_rag.py", title="Multi RAG", icon="📝"),
+        st.Page(page="pages/OCR.py", title="OCR", icon="📸"),
+        st.Page(page="pages/vision_ai.py", title="Vision AI", icon="👁️‍🗨️"),
+        st.Page(page="pages/audio_assess.py", title="Audio Assessment", icon="🎤"),
+        st.Page(page="pages/exam_agent.py", title="Exam Agent", icon="💯"),
+        st.Page(page='pages/game_generator.py', title="Game Generator", icon="🎮"),
+        st.Page(page="pages/story_teller.py", title="Story Teller", icon="🌝"),
 
     ]
 )

@@ -33,7 +33,7 @@ def synthesize_speech(text: str, language_code: str = "te") -> bytes:
 # Main interaction UI
 def main():
 
-    st.title("Chandamama AI")
+    st.title("🌝 Chandamama AI")
 
     # Initialize session state variables if they don't exist
     if 'story' not in st.session_state:
