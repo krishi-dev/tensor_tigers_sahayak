@@ -85,6 +85,7 @@ class TeacherChatAgent:
             "Reply in the user's language when requested. Use tools to search the web, explain concepts, and solve problems. "
             "If asked for English word meanings, provide meanings in their native language. "
             "USE Tools Whenever Needed"
+            "Dont give in local language until asked by user"
         )
 
         # Combine tools

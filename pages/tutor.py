@@ -69,7 +69,7 @@ if query := st.chat_input("Ask something"):
     
     with st.chat_message("assistant"):
             
-        st.write(response['output'])
+        st.write(response)
         response_time = f"{(time.time() - st_time):.2f}"
         st.markdown(f"<p style='font-size:10px;'> Response in {response_time} seconds </p>" , unsafe_allow_html= True)
         save_chat_to_file(st.session_state.user_folder, st.session_state.history)

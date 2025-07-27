@@ -10,7 +10,7 @@ if "img_gen" not in st.session_state:
 st.title("🎨 AI Kala Vedhika")
 
 st.markdown("""
-This tool uses **Vertex AI Imagen** to turn scene prompts into beautiful images.
+This tool uses *Vertex AI Imagen* to turn scene prompts into beautiful images.
 Write story scenes or topic descriptions below.
 """)
 
@@ -23,7 +23,7 @@ s1, s2 = st.columns([0.7, 0.3])
 with s1:
     prompt_input = st.text_area("📝 Describe your scene(s):", value=default_prompt, height=300)
 with s2:
-    num_images = st.slider("🖼️ Number of images", 1, 6, 1)
+    num_images = st.slider("🖼️ Number of images", 1, 6, 3)
     aspect_ratio = st.selectbox("📐 Aspect ratio", ["1:1", "4:3", "16:9"])
 generate_button = st.button("🚀 Generate Images")
 
@@ -46,7 +46,7 @@ if generate_button and prompt_input.strip():
             cols = st.columns(min(len(img_list), 3))
             for i, img in enumerate(img_list):
                 with cols[i % len(cols)]:
-                    st.image(img, caption=f"Image {i + 1}", use_container_width=False, width=400)
+                    st.image(img, caption=f"Scene {i + 1}", use_container_width=False, width=400)
 
                     # Download button
                     img_bytes = io.BytesIO()
