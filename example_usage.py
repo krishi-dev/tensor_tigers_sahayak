@@ -6,8 +6,6 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from components.class_display import display_classes_card_view, display_class_details
-from components.modern_class_display import display_modern_class_management, create_class_form
-from components.class_dashboard import display_class_dashboard_page
 from db_utils import get_db_manager
 from pages.exam_agent import generate_quiz
 
@@ -18,83 +16,40 @@ def main():
         layout="wide"
     )
     
-    # Check if we should show class dashboard
-    if st.session_state.get('show_class_dashboard', False) and st.session_state.get('selected_class'):
-        display_class_dashboard_page(st.session_state['selected_class'])
-        
-        # Add back button
-        if st.sidebar.button("← Back to Classes"):
-            st.session_state['show_class_dashboard'] = False
-            st.session_state['selected_class'] = None
-            st.rerun()
-        return
+    st.title("🎓 Sahayak - Class & Exam System")
+    st.markdown("Integrated class viewing and exam generation system")
     
     # Sidebar navigation
-    st.sidebar.title("🎓 Sahayak")
-    st.sidebar.markdown("Class & Exam Management System")
-    
+    st.sidebar.title("Navigation")
     page = st.sidebar.selectbox(
         "Choose a page",
-        ["Modern Classes", "Generate Exam", "Class Details", "Add New Class"]
+        ["Classes", "Generate Exam", "Class Details"]
     )
     
-    if page == "Modern Classes":
-        show_modern_classes_page()
+    if page == "Classes":
+        show_classes_page()
     elif page == "Generate Exam":
         show_exam_page()
     elif page == "Class Details":
         show_class_details_page()
-    elif page == "Add New Class":
-        show_add_class_page()
 
-def show_modern_classes_page():
-    """Display modern classes page with HTML styling"""
-    display_modern_class_management()
-
-def show_add_class_page():
-    """Show the add new class form"""
-    st.header("➕ Create New Class")
-    st.markdown("Add a new class to your management system")
+def show_classes_page():
+    """Display classes page"""
+    st.header("📚 Available Classes")
     
-    new_class = create_class_form()
+    db_manager = get_db_manager()
+    if not db_manager:
+        st.error("❌ Unable to connect to database.")
+        return
     
-    if new_class:
-        # Save to database
-        db_manager = get_db_manager()
-        if db_manager:
-            try:
-                if db_manager.create_class(new_class):
-                    st.success("✅ Class created successfully!")
-                    st.balloons()
-                    
-                    # Show the created class details
-                    st.subheader("Created Class Details")
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.write(f"**Class Name:** {new_class['name']}")
-                        st.write(f"**Grade:** {new_class['grade']}")
-                        st.write(f"**Subject:** {new_class['subject']}")
-                    
-                    with col2:
-                        st.write(f"**Teacher:** {new_class['teacher']}")
-                        st.write(f"**Capacity:** {new_class['capacity']} students")
-                        st.write(f"**Schedule:** {new_class['schedule']}")
-                    
-                    if new_class.get('description'):
-                        st.write(f"**Description:** {new_class['description']}")
-                    
-                    # Add a button to view all classes
-                    if st.button("View All Classes"):
-                        st.session_state['page'] = "Modern Classes"
-                        st.rerun()
-                else:
-                    st.error("❌ Failed to create class. Please try again.")
-                    
-            finally:
-                db_manager.disconnect()
+    try:
+        classes = db_manager.fetch_classes()
+        if classes:
+            display_classes_card_view(classes, "All Classes")
         else:
-            st.error("❌ Unable to connect to database.")
+            st.info("No classes available.")
+    finally:
+        db_manager.disconnect()
 
 def show_exam_page():
     """Show exam generation page with class integration"""
