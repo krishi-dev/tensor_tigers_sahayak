@@ -24,7 +24,9 @@ SEND_SAMPLE_RATE = 16000
 RECEIVE_SAMPLE_RATE = 24000
 CHUNK_SIZE = 1024
 
-MODEL = "models/gemini-2.0-flash-live-001"
+# MODEL = "models/gemini-2.0-flash-live-001"
+MODEL = "models/gemini-live-2.5-flash-preview"
+
 DEFAULT_MODE = "camera"
 
 client = genai.Client(http_options={"api_version": "v1beta"})
